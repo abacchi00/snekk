@@ -2,10 +2,17 @@ use std::thread;
 use std::time::Duration;
 
 const BOARD_SIZE: usize = 20;
+const EMPTY_CELL_STR: &str = " ◯";
+const SNAKE_CELL_STR: &str = " ■";
 
 type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
 type SnekkSize = usize;
-type SnekkPos = (usize, usize);
+
+#[derive(Clone, Copy)]
+struct SnekkPos {
+  x: usize,
+  y: usize,
+}
 
 // Utils
 
@@ -17,10 +24,13 @@ fn clear_terminal() {
 
 // State Updaters
 
-fn update_snake_pos (mut snekk_pos: SnekkPos) -> SnekkPos {
+fn update_snake_pos (snekk_pos: SnekkPos) -> SnekkPos {
   let increment: usize = 1;
 
-  return (snekk_pos.0, (snekk_pos.1 + increment) % BOARD_SIZE);
+  return SnekkPos {
+    y: snekk_pos.y,
+    x: (snekk_pos.x + increment) % BOARD_SIZE,
+  };
 } 
 
 fn update_board_state(
@@ -35,10 +45,10 @@ fn update_board_state(
   }
 
   for i in 0..snekk_size {
-    let x: usize = snekk_pos.0;
+    let x: usize = snekk_pos.y;
     let y: usize =
-      if snekk_pos.1 < i{ snekk_pos.1 + BOARD_SIZE - i }
-      else { snekk_pos.1 - i };
+      if snekk_pos.x < i{ snekk_pos.x + BOARD_SIZE - i }
+      else { snekk_pos.x - i };
 
     board_state[x][y] = 1;
   }
@@ -49,13 +59,17 @@ fn update_board_state(
 // Render Functions
 
 fn render_snekk_pos(snekk_pos: SnekkPos) {
-  println!(" Snekk pos - x: {} y: {}", snekk_pos.0, snekk_pos.1);
+  println!(" Snekk pos - x: {} y: {}", snekk_pos.x, snekk_pos.y);
 }
 
 fn render_board(board_state: BoardState) {
   board_state.iter().for_each(|line| {
     line.iter().for_each(|cell| {
-      print!("{}", if *cell == 0 { " ◯" } else { " ■" })
+      let cell_str =
+        if *cell == 0 { EMPTY_CELL_STR }
+        else { SNAKE_CELL_STR };
+
+      print!("{}", cell_str);
     });
 
     println!();
@@ -72,7 +86,7 @@ fn render_game(snekk_pos: SnekkPos, board_state: BoardState) {
 
 fn main() {
   let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
-  let mut snekk_pos: (usize, usize) = (1, 3);
+  let mut snekk_pos = SnekkPos { x: 1, y: 3 };
   let snekk_size: usize = 3; // for now not mut
   
   loop {
