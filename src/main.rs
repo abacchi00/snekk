@@ -1,9 +1,11 @@
+use device_query::{DeviceQuery, DeviceState, Keycode};
 use std::thread;
-use std::time::Duration;
+use std::time::{Instant, Duration};
 
 const BOARD_SIZE: usize = 20;
 const EMPTY_CELL_STR: &str = " ◯";
 const SNAKE_CELL_STR: &str = " ■";
+const TICK_RATE: Duration = Duration::from_millis(150);
 
 type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
 type SnekkSize = usize;
@@ -23,6 +25,17 @@ fn clear_terminal() {
 }
 
 // State Updaters
+
+fn update_current_dir (current_dir: Keycode, keys: Vec<Keycode>) -> Keycode {
+  let mut new_dir = current_dir;
+
+  if keys.contains(&Keycode::Up)    { new_dir = Keycode::Up };
+  if keys.contains(&Keycode::Down)  { new_dir = Keycode::Down };
+  if keys.contains(&Keycode::Left)  { new_dir = Keycode::Left };
+  if keys.contains(&Keycode::Right) { new_dir = Keycode::Right };
+
+  return new_dir;
+}
 
 fn update_snake_pos (snekk_pos: SnekkPos) -> SnekkPos {
   let increment: usize = 1;
@@ -85,16 +98,31 @@ fn render_game(snekk_pos: SnekkPos, board_state: BoardState) {
 // Core Game Loop
 
 fn main() {
+  let device_state = DeviceState::new();
+
   let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
   let mut snekk_pos = SnekkPos { x: 1, y: 3 };
   let snekk_size: usize = 3; // for now not mut
+
+  let mut last_tick = Instant::now();
+
+  let mut current_dir = Keycode::Right; 
   
   loop {
-    snekk_pos = update_snake_pos(snekk_pos);
-    board_state = update_board_state(snekk_size, snekk_pos, board_state);
-    
-    thread::sleep(Duration::from_millis(150));
+    current_dir = update_current_dir(current_dir, device_state.get_keys());
 
-    render_game(snekk_pos, board_state);
+    if last_tick.elapsed() >= TICK_RATE {
+      snekk_pos = update_snake_pos(snekk_pos);
+      board_state = update_board_state(snekk_size, snekk_pos, board_state);
+      
+      render_game(snekk_pos, board_state);
+      println!("{}", current_dir); // temp
+
+      last_tick = Instant::now();
+    }
+
+    // Protects cpu from running loop too fast unnecessarily
+    thread::sleep(Duration::from_millis(1));
   }
+  
 }
