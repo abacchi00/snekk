@@ -1,14 +1,19 @@
 use device_query::{DeviceQuery, DeviceState, Keycode};
 use std::thread;
 use std::time::{Instant, Duration};
+use std::collections::VecDeque;
+
+// Constants
 
 const BOARD_SIZE: usize = 20;
 const EMPTY_CELL_STR: &str = " ◯";
 const SNAKE_CELL_STR: &str = " ■";
-const TICK_RATE: Duration = Duration::from_millis(150);
+const TICK_RATE: Duration = Duration::from_millis(100);
+
+// Types & Structs
 
 type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
-type SnekkSize = usize;
+type SnekkBody = VecDeque<SnekkPos>;
 
 #[derive(Clone, Copy)]
 struct SnekkPos {
@@ -26,29 +31,52 @@ fn clear_terminal() {
 
 // State Updaters
 
-fn update_current_dir (current_dir: Keycode, keys: Vec<Keycode>) -> Keycode {
+fn update_current_dir(current_dir: Keycode, keys: Vec<Keycode>) -> Keycode {
   let mut new_dir = current_dir;
 
-  if keys.contains(&Keycode::Up)    { new_dir = Keycode::Up };
-  if keys.contains(&Keycode::Down)  { new_dir = Keycode::Down };
-  if keys.contains(&Keycode::Left)  { new_dir = Keycode::Left };
-  if keys.contains(&Keycode::Right) { new_dir = Keycode::Right };
+  if keys.contains(&Keycode::Up) && current_dir != Keycode::Down    { new_dir = Keycode::Up };
+  if keys.contains(&Keycode::Down) && current_dir != Keycode::Up    { new_dir = Keycode::Down };
+  if keys.contains(&Keycode::Left) && current_dir != Keycode::Right { new_dir = Keycode::Left };
+  if keys.contains(&Keycode::Right) && current_dir != Keycode::Left { new_dir = Keycode::Right };
 
   return new_dir;
 }
 
-fn update_snake_pos (snekk_pos: SnekkPos) -> SnekkPos {
+fn update_snake_pos(snekk_pos: SnekkPos, current_dir: Keycode) -> SnekkPos {
   let increment: usize = 1;
 
-  return SnekkPos {
-    y: snekk_pos.y,
-    x: (snekk_pos.x + increment) % BOARD_SIZE,
-  };
-} 
+  if current_dir == Keycode::Up {
+    return SnekkPos {
+      x: snekk_pos.x.checked_sub(increment).unwrap_or(BOARD_SIZE - increment),
+      y: snekk_pos.y,
+    };
+  } else if current_dir == Keycode::Down {
+    return SnekkPos {
+      x: (snekk_pos.x + increment) % BOARD_SIZE,
+      y: snekk_pos.y,
+    };
+  } else if current_dir == Keycode::Right {
+    return SnekkPos {
+      x: snekk_pos.x,
+      y: (snekk_pos.y + increment) % BOARD_SIZE,
+    };
+  } else {
+    return SnekkPos {
+      x: snekk_pos.x,
+      y: snekk_pos.y.checked_sub(increment).unwrap_or(BOARD_SIZE - increment),
+    };
+  }
+}
+
+fn update_snake_body(mut snekk_body: SnekkBody, new_pos: SnekkPos) -> SnekkBody {
+  snekk_body.pop_back();
+  snekk_body.push_front(new_pos);
+
+  return snekk_body;
+}
 
 fn update_board_state(
-  snekk_size: SnekkSize,
-  snekk_pos: SnekkPos,
+  snekk_body: SnekkBody,
   mut board_state: BoardState
 ) -> BoardState {
   for x in 0..BOARD_SIZE {
@@ -57,13 +85,8 @@ fn update_board_state(
     }  
   }
 
-  for i in 0..snekk_size {
-    let x: usize = snekk_pos.y;
-    let y: usize =
-      if snekk_pos.x < i{ snekk_pos.x + BOARD_SIZE - i }
-      else { snekk_pos.x - i };
-
-    board_state[x][y] = 1;
+  for segment in &snekk_body {
+    board_state[segment.x][segment.y] = 1;
   }
 
   return board_state;
@@ -102,18 +125,21 @@ fn main() {
 
   let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
   let mut snekk_pos = SnekkPos { x: 1, y: 3 };
-  let snekk_size: usize = 3; // for now not mut
-
+  let mut snekk_body: SnekkBody = VecDeque::from([
+    SnekkPos { x: 1, y: 3 },
+    SnekkPos { x: 1, y: 2 },
+    SnekkPos { x: 1, y: 1 },
+  ]);
   let mut last_tick = Instant::now();
-
   let mut current_dir = Keycode::Right; 
   
   loop {
     current_dir = update_current_dir(current_dir, device_state.get_keys());
 
     if last_tick.elapsed() >= TICK_RATE {
-      snekk_pos = update_snake_pos(snekk_pos);
-      board_state = update_board_state(snekk_size, snekk_pos, board_state);
+      snekk_pos = update_snake_pos(snekk_pos, current_dir);
+      snekk_body = update_snake_body(snekk_body, snekk_pos);
+      board_state = update_board_state(snekk_body.clone(), board_state);
       
       render_game(snekk_pos, board_state);
       println!("{}", current_dir); // temp
