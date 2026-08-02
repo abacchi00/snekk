@@ -7,8 +7,8 @@ use rand;
 // Constants
 const BOARD_SIZE: usize = 20;
 const EMPTY_CELL_STR: &str = " ·";
-const SNAKE_CELL_STR: &str = " ■";
-const APPLE_CELL_STR: &str = " ✱";
+const SNAKE_CELL_STR: &str = "\x1b[32m ■\x1b[0m";
+const APPLE_CELL_STR: &str = "\x1b[91m ✱\x1b[0m";
 const TICK_RATE: Duration = Duration::from_millis(100);
 
 // Types & Structs
@@ -135,8 +135,7 @@ fn main() {
       update_board_state(&mut board_state, &mut snekk_body, apple_pos);
       
       render_game(&snekk_pos, &board_state);
-      println!("{}", current_dir); // temp
-
+      println!("Current dir: {} - Snake size: {}", current_dir, snekk_body.len());
       last_tick = Instant::now();
     }
 
