@@ -6,7 +6,7 @@ use rand;
 
 // Constants
 const BOARD_SIZE: usize = 20;
-const EMPTY_CELL_STR: &str = " ·";
+const EMPTY_CELL_STR: &str = "\x1b[90m ·\x1b[0m";
 const SNAKE_CELL_STR: &str = "\x1b[32m ■\x1b[0m";
 const APPLE_CELL_STR: &str = "\x1b[91m ✱\x1b[0m";
 const TICK_RATE: Duration = Duration::from_millis(100);
