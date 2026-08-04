@@ -7,10 +7,6 @@ const CELL_SIZE: f32 = 30.0;
 const TICK_RATE: f64 = 0.1; // 100ms
 
 // Types, Structs and Implementations 
-type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
-
-type SnekkBody = VecDeque<Pos>;
-
 #[derive(Clone, Copy, PartialEq)]
 struct Pos {
   x: usize,
@@ -47,9 +43,10 @@ impl Direction {
 }
 
 struct Snekk {
-  body: SnekkBody,
+  body: VecDeque<Pos>,
   direction: Direction,
   pos: Pos,
+  size: usize
 }
 
 impl Snekk {
@@ -64,6 +61,7 @@ impl Snekk {
       body: VecDeque::from(Self::INITIAL_POS),
       direction: Direction::Right,
       pos: Self::INITIAL_POS[0],
+      size: Self::INITIAL_POS.len(),
     }
   }
 
@@ -89,8 +87,13 @@ impl Snekk {
     if self.pos != apple.pos {
       self.body.pop_back();
     } else {
+      self.size += 1;
       apple.goto_valid_position(&self.body);
     }
+  }
+
+  fn contains_segment(&self, x: usize, y: usize) -> bool {
+    self.body.iter().any(|pos| *pos == (Pos { x, y }))
   }
 }
 
@@ -123,21 +126,8 @@ impl Apple {
   }
 }
 
-// State Updaters
-fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, apple: &Apple) {
-  for row in board_state.iter_mut() {
-    row.fill(0);
-  }
-
-  board_state[apple.pos.x][apple.pos.y] = 2;
-
-  for segment_pos in snekk_body {
-    board_state[segment_pos.x][segment_pos.y] = 1;
-  }
-}
-
 // Render Functions
-fn render_game(board_state: &BoardState, snekk_body_len: usize) {
+fn render_game(snekk: &Snekk, apple: &Apple) {
   clear_background(Color::new(0.05, 0.05, 0.05, 1.0));
 
   let offset_x = (screen_width() - (BOARD_SIZE as f32 * CELL_SIZE)) / 2.0;
@@ -145,23 +135,21 @@ fn render_game(board_state: &BoardState, snekk_body_len: usize) {
 
   for x in 0..BOARD_SIZE {
     for y in 0..BOARD_SIZE {
-      let cell = board_state[x][y];
-      
       let px = offset_x + (x as f32 * CELL_SIZE);
       let py = offset_y + (y as f32 * CELL_SIZE);
 
-      if cell == 0 {
-        draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, 2.0, DARKGRAY);
-      } else if cell == 1 {
+      if snekk.contains_segment(x, y) {
         draw_rectangle(px + 1.0, py + 1.0, CELL_SIZE - 2.0, CELL_SIZE - 2.0, GREEN);
-      } else if cell == 2 {
+      } else if apple.pos == (Pos { x, y }) {
         draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, CELL_SIZE * 0.4, RED);
+      } else {
+        draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, 2.0, DARKGRAY);
       }
     }
   }
 
   draw_text(
-    &format!("Snake size: {}", snekk_body_len),
+    &format!("Snake size: {}", snekk.size),
     20.0,
     30.0,
     30.0,
@@ -172,7 +160,6 @@ fn render_game(board_state: &BoardState, snekk_body_len: usize) {
 // Core Game Loop
 #[macroquad::main("Snekk")]
 async fn main() {
-  let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
   let mut snekk = Snekk::new();
   let mut apple = Apple::new(&snekk.body);
   let mut last_tick = get_time();
@@ -185,12 +172,11 @@ async fn main() {
 
     if get_time() - last_tick >= TICK_RATE {
       snekk.advance(&mut apple);
-      update_board_state(&mut board_state, &mut snekk.body, &apple);
       
       last_tick = get_time();
     }
 
-    render_game(&board_state, snekk.body.len());
+    render_game(&snekk, &apple);
 
     next_frame().await;
   }

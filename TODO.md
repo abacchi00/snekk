@@ -1,4 +1,3 @@
-- Remove BoardState 2D array and render directly from snake and apple data.
 - Merge standalone head position into the snekk_body VecDeque.
 - Add impl's.
 - Add self-collision detection and a game_over flag.
