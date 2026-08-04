@@ -46,7 +46,6 @@ struct Snekk {
   body: VecDeque<Pos>,
   direction: Direction,
   pos: Pos,
-  size: usize
 }
 
 impl Snekk {
@@ -61,7 +60,6 @@ impl Snekk {
       body: VecDeque::from(Self::INITIAL_POS),
       direction: Direction::Right,
       pos: Self::INITIAL_POS[0],
-      size: Self::INITIAL_POS.len(),
     }
   }
 
@@ -80,10 +78,6 @@ impl Snekk {
     }
 
     self.body.push_front(self.pos);
-  }
-
-  fn contains_segment(&self, x: usize, y: usize) -> bool {
-    self.body.iter().any(|pos| *pos == (Pos { x, y }))
   }
 
   fn shrink(&mut self) {
@@ -131,19 +125,22 @@ fn render_game(snekk: &Snekk, apple: &Apple) {
     for y in 0..BOARD_SIZE {
       let px = offset_x + (x as f32 * CELL_SIZE);
       let py = offset_y + (y as f32 * CELL_SIZE);
-
-      if snekk.contains_segment(x, y) {
-        draw_rectangle(px + 1.0, py + 1.0, CELL_SIZE - 2.0, CELL_SIZE - 2.0, GREEN);
-      } else if apple.pos == (Pos { x, y }) {
-        draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, CELL_SIZE * 0.4, RED);
-      } else {
-        draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, 2.0, DARKGRAY);
-      }
+      draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, 2.0, DARKGRAY);
     }
   }
 
+  for segment in &snekk.body {
+    let px = offset_x + (segment.x as f32 * CELL_SIZE);
+    let py = offset_y + (segment.y as f32 * CELL_SIZE);
+    draw_rectangle(px + 1.0, py + 1.0, CELL_SIZE - 2.0, CELL_SIZE - 2.0, GREEN);
+  }
+
+  let ax = offset_x + (apple.pos.x as f32 * CELL_SIZE);
+  let ay = offset_y + (apple.pos.y as f32 * CELL_SIZE);
+  draw_circle(ax + CELL_SIZE / 2.0, ay + CELL_SIZE / 2.0, CELL_SIZE * 0.4, RED);
+
   draw_text(
-    &format!("Snake size: {}", snekk.size),
+    &format!("Snake size: {}", snekk.body.len()),
     20.0,
     30.0,
     30.0,
@@ -174,7 +171,6 @@ async fn main() {
       if snekk.pos != apple.pos {
         snekk.shrink()
       } else {
-        snekk.size += 1;
         apple.goto_valid_position(&snekk.body);
       }
       
