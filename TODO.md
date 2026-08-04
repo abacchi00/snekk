@@ -1,3 +1,4 @@
+- Separate main.rs into more files
 - Merge standalone head position into the snekk_body VecDeque.
 - Add impl's.
 - Add self-collision detection and a game_over flag.
