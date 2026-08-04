@@ -8,10 +8,10 @@ const TICK_RATE: f64 = 0.1; // 100ms
 
 // Types & Structs
 type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
-type SnekkBody = VecDeque<SnekkPos>;
+type SnekkBody = VecDeque<Pos>;
 
 #[derive(Clone, Copy, PartialEq)]
-struct SnekkPos {
+struct Pos {
   x: usize,
   y: usize,
 }
@@ -37,7 +37,7 @@ fn update_current_dir(current_dir: &mut Direction) {
   }
 }
 
-fn update_snake_pos(snekk_pos: &mut SnekkPos, current_dir: Direction) {
+fn update_snake_pos(snekk_pos: &mut Pos, current_dir: Direction) {
   match current_dir {
     Direction::Up => snekk_pos.y = snekk_pos.y.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
     Direction::Down => snekk_pos.y = (snekk_pos.y + 1) % BOARD_SIZE,
@@ -46,7 +46,7 @@ fn update_snake_pos(snekk_pos: &mut SnekkPos, current_dir: Direction) {
   }
 }
 
-fn update_snake_body(snekk_body: &mut SnekkBody, new_pos: SnekkPos, apple_pos: &mut SnekkPos) {
+fn update_snake_body(snekk_body: &mut SnekkBody, new_pos: Pos, apple_pos: &mut Pos) {
   snekk_body.push_front(new_pos);
 
   if new_pos != *apple_pos {
@@ -56,7 +56,7 @@ fn update_snake_body(snekk_body: &mut SnekkBody, new_pos: SnekkPos, apple_pos: &
   }
 }
 
-fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, apple_pos: SnekkPos) {
+fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, apple_pos: Pos) {
   for row in board_state.iter_mut() {
     row.fill(0);
   }
@@ -68,9 +68,9 @@ fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, 
   }
 }
 
-fn generate_apple_pos(snekk_body: &SnekkBody) -> SnekkPos {
+fn generate_apple_pos(snekk_body: &SnekkBody) -> Pos {
   loop {
-    let candidate = SnekkPos {
+    let candidate = Pos {
       x: rand::gen_range(0, BOARD_SIZE),
       y: rand::gen_range(0, BOARD_SIZE),
     };
@@ -118,13 +118,13 @@ fn render_game(board_state: &BoardState, snekk_body_len: usize) {
 #[macroquad::main("Snekk")]
 async fn main() {
   let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
-  let mut snekk_pos = SnekkPos { x: 3, y: 1 };
+  let mut snekk_pos = Pos { x: 3, y: 1 };
   let mut snekk_body: SnekkBody = VecDeque::from([
-    SnekkPos { x: 3, y: 1 },
-    SnekkPos { x: 2, y: 1 },
-    SnekkPos { x: 1, y: 1 },
+    Pos { x: 3, y: 1 },
+    Pos { x: 2, y: 1 },
+    Pos { x: 1, y: 1 },
   ]);
-  let mut apple_pos: SnekkPos = generate_apple_pos(&snekk_body);
+  let mut apple_pos: Pos = generate_apple_pos(&snekk_body);
   let mut last_tick = get_time();
   let mut current_dir = Direction::Right; 
   
