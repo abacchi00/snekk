@@ -22,12 +22,12 @@ enum Direction {
 }
 
 impl Direction {
-  fn from_keycode(keycode: Option<KeyCode>) -> Option<Self> {
+  fn from_keycode(keycode: KeyCode) -> Option<Self> {
     match keycode {
-      Some(KeyCode::Up) => Some(Direction::Up),
-      Some(KeyCode::Down) => Some(Direction::Down),
-      Some(KeyCode::Left) => Some(Direction::Left),
-      Some(KeyCode::Right) => Some(Direction::Right),
+      KeyCode::Up => Some(Direction::Up),
+      KeyCode::Down => Some(Direction::Down),
+      KeyCode::Left => Some(Direction::Left),
+      KeyCode::Right => Some(Direction::Right),
       _ => None
     } 
   }
@@ -65,15 +65,13 @@ impl Snekk {
     }
   }
 
-  fn change_direction(&mut self, maybe_new_direction: Option<Direction>) {
-    if let Some(new_direction) = maybe_new_direction {
-      if new_direction == self.direction.opposite() { return; }
+  fn change_direction(&mut self, new_direction: Direction) {
+    if new_direction == self.direction.opposite() { return; }
 
-      self.direction = new_direction;
-    }
+    self.direction = new_direction;
   }
 
-  fn advance(&mut self, apple: &mut Apple) {
+  fn advance(&mut self) {
     match self.direction {
       Direction::Up => self.pos.y = self.pos.y.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
       Direction::Down => self.pos.y = (self.pos.y + 1) % BOARD_SIZE,
@@ -82,18 +80,14 @@ impl Snekk {
     }
 
     self.body.push_front(self.pos);
-
-    // TODO: remove apple regeneration responsability from here
-    if self.pos != apple.pos {
-      self.body.pop_back();
-    } else {
-      self.size += 1;
-      apple.goto_valid_position(&self.body);
-    }
   }
 
   fn contains_segment(&self, x: usize, y: usize) -> bool {
     self.body.iter().any(|pos| *pos == (Pos { x, y }))
+  }
+
+  fn shrink(&mut self) {
+    self.body.pop_back();
   }
 }
 
@@ -168,10 +162,21 @@ async fn main() {
   rand::srand(macroquad::miniquad::date::now() as u64);
 
   loop {
-    snekk.change_direction(Direction::from_keycode(get_last_key_pressed()));
+    if let Some(pressed_key_code) = get_last_key_pressed() {
+      if let Some(new_direction) = Direction::from_keycode(pressed_key_code) {
+        snekk.change_direction(new_direction);
+      }
+    }
 
     if get_time() - last_tick >= TICK_RATE {
-      snekk.advance(&mut apple);
+      snekk.advance();
+
+      if snekk.pos != apple.pos {
+        snekk.shrink()
+      } else {
+        snekk.size += 1;
+        apple.goto_valid_position(&snekk.body);
+      }
       
       last_tick = get_time();
     }
