@@ -1,3 +1,5 @@
-## Snekk Game ##
+## Snekk ##
 
-<img width="815" height="582" alt="Screenshot 2026-08-02 at 01 54 39" src="https://github.com/user-attachments/assets/b8c0db45-235e-4f3e-8e25-c71e57159718" />
+A little snake game made with the purpose of exploring and learning Rust for the first time.
+
+<img width="801" height="624" alt="Screenshot 2026-08-03 at 23 28 30" src="https://github.com/user-attachments/assets/6a434a20-da33-4b3e-b5f9-0a141c80fec5" />
