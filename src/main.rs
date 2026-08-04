@@ -1,15 +1,10 @@
-use device_query::{DeviceQuery, DeviceState, Keycode};
-use std::thread;
-use std::time::{Instant, Duration};
+use macroquad::prelude::*;
 use std::collections::VecDeque;
-use rand;
 
 // Constants
 const BOARD_SIZE: usize = 20;
-const EMPTY_CELL_STR: &str = "\x1b[90m ·\x1b[0m";
-const SNAKE_CELL_STR: &str = "\x1b[32m ■\x1b[0m";
-const APPLE_CELL_STR: &str = "\x1b[91m ✱\x1b[0m";
-const TICK_RATE: Duration = Duration::from_millis(100);
+const CELL_SIZE: f32 = 30.0;
+const TICK_RATE: f64 = 0.1; // 100ms
 
 // Types & Structs
 type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
@@ -21,40 +16,40 @@ struct SnekkPos {
   y: usize,
 }
 
-// Utils
-fn clear_terminal() {
-  print!("\x1B[2J\x1B[1;1H");
+#[derive(Clone, Copy, PartialEq)]
+enum Direction {
+  Up,
+  Down,
+  Left,
+  Right,
 }
 
 // State Updaters
-
-fn update_current_dir(current_dir: &mut Keycode, keys: &[Keycode]) {
-  if keys.contains(&Keycode::Up) && *current_dir != Keycode::Down    { *current_dir = Keycode::Up };
-  if keys.contains(&Keycode::Down) && *current_dir != Keycode::Up    { *current_dir = Keycode::Down };
-  if keys.contains(&Keycode::Left) && *current_dir != Keycode::Right { *current_dir = Keycode::Left };
-  if keys.contains(&Keycode::Right) && *current_dir != Keycode::Left { *current_dir = Keycode::Right };
+fn update_current_dir(current_dir: &mut Direction) {
+  if is_key_pressed(KeyCode::Up) && *current_dir != Direction::Down {
+    *current_dir = Direction::Up;
+  } else if is_key_pressed(KeyCode::Down) && *current_dir != Direction::Up {
+    *current_dir = Direction::Down;
+  } else if is_key_pressed(KeyCode::Left) && *current_dir != Direction::Right {
+    *current_dir = Direction::Left;
+  } else if is_key_pressed(KeyCode::Right) && *current_dir != Direction::Left {
+    *current_dir = Direction::Right;
+  }
 }
 
-fn update_snake_pos(snekk_pos: &mut SnekkPos, current_dir: Keycode) {
-  let increment: usize = 1;
-
-  if current_dir == Keycode::Up {
-    snekk_pos.x = snekk_pos.x.checked_sub(increment).unwrap_or(BOARD_SIZE - increment);
-  } else if current_dir == Keycode::Down {
-    snekk_pos.x = (snekk_pos.x + increment) % BOARD_SIZE;
-  } else if current_dir == Keycode::Right {
-    snekk_pos.y = (snekk_pos.y + increment) % BOARD_SIZE;
-  } else {
-    snekk_pos.y = snekk_pos.y.checked_sub(increment).unwrap_or(BOARD_SIZE - increment);
+fn update_snake_pos(snekk_pos: &mut SnekkPos, current_dir: Direction) {
+  match current_dir {
+    Direction::Up => snekk_pos.y = snekk_pos.y.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
+    Direction::Down => snekk_pos.y = (snekk_pos.y + 1) % BOARD_SIZE,
+    Direction::Left => snekk_pos.x = snekk_pos.x.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
+    Direction::Right => snekk_pos.x = (snekk_pos.x + 1) % BOARD_SIZE,
   }
 }
 
 fn update_snake_body(snekk_body: &mut SnekkBody, new_pos: SnekkPos, apple_pos: &mut SnekkPos) {
-  let snekk_head_pos = *snekk_body.front().unwrap();
-
   snekk_body.push_front(new_pos);
 
-  if snekk_head_pos != *apple_pos {
+  if new_pos != *apple_pos {
     snekk_body.pop_back();
   } else {
     *apple_pos = generate_apple_pos(&snekk_body);
@@ -76,8 +71,8 @@ fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, 
 fn generate_apple_pos(snekk_body: &SnekkBody) -> SnekkPos {
   loop {
     let candidate = SnekkPos {
-      x: rand::random_range(0..BOARD_SIZE),
-      y: rand::random_range(0..BOARD_SIZE),
+      x: rand::gen_range(0, BOARD_SIZE),
+      y: rand::gen_range(0, BOARD_SIZE),
     };
 
     if !snekk_body.iter().any(|pos| pos.x == candidate.x && pos.y == candidate.y) {
@@ -87,59 +82,68 @@ fn generate_apple_pos(snekk_body: &SnekkBody) -> SnekkPos {
 }
 
 // Render Functions
-fn render_snekk_pos(snekk_pos: &SnekkPos) {
-  println!(" Snekk pos - x: {} y: {}", snekk_pos.x, snekk_pos.y);
-}
+fn render_game(board_state: &BoardState, snekk_body_len: usize) {
+  clear_background(Color::new(0.05, 0.05, 0.05, 1.0));
 
-fn render_board(board_state: &BoardState) {
-  board_state.iter().for_each(|line| {
-    line.iter().for_each(|cell| {
-      let cell_str = 
-        if *cell == 0 { EMPTY_CELL_STR }
-        else if *cell == 1 { SNAKE_CELL_STR }
-        else { APPLE_CELL_STR };
-      print!("{}", cell_str);
-    });
-    println!();
-  });
-}
+  let offset_x = (screen_width() - (BOARD_SIZE as f32 * CELL_SIZE)) / 2.0;
+  let offset_y = (screen_height() - (BOARD_SIZE as f32 * CELL_SIZE)) / 2.0;
 
-fn render_game(snekk_pos: &SnekkPos, board_state: &BoardState) {
-  clear_terminal();
-  render_snekk_pos(snekk_pos);
-  render_board(board_state);
+  for x in 0..BOARD_SIZE {
+    for y in 0..BOARD_SIZE {
+      let cell = board_state[x][y];
+      
+      let px = offset_x + (x as f32 * CELL_SIZE);
+      let py = offset_y + (y as f32 * CELL_SIZE);
+
+      if cell == 0 {
+        draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, 2.0, DARKGRAY);
+      } else if cell == 1 {
+        draw_rectangle(px + 1.0, py + 1.0, CELL_SIZE - 2.0, CELL_SIZE - 2.0, GREEN);
+      } else if cell == 2 {
+        draw_circle(px + CELL_SIZE / 2.0, py + CELL_SIZE / 2.0, CELL_SIZE * 0.4, RED);
+      }
+    }
+  }
+
+  draw_text(
+    &format!("Snake size: {}", snekk_body_len),
+    20.0,
+    30.0,
+    30.0,
+    WHITE,
+  );
 }
 
 // Core Game Loop
-
-fn main() {
-  let device_state = DeviceState::new();
-
+#[macroquad::main("Snekk")]
+async fn main() {
   let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
-  let mut snekk_pos = SnekkPos { x: 1, y: 3 };
+  let mut snekk_pos = SnekkPos { x: 3, y: 1 };
   let mut snekk_body: SnekkBody = VecDeque::from([
-    SnekkPos { x: 1, y: 3 },
-    SnekkPos { x: 1, y: 2 },
+    SnekkPos { x: 3, y: 1 },
+    SnekkPos { x: 2, y: 1 },
     SnekkPos { x: 1, y: 1 },
   ]);
   let mut apple_pos: SnekkPos = generate_apple_pos(&snekk_body);
-  let mut last_tick = Instant::now();
-  let mut current_dir = Keycode::Right; 
+  let mut last_tick = get_time();
+  let mut current_dir = Direction::Right; 
   
-  loop {
-    update_current_dir(&mut current_dir, &device_state.get_keys());
+  // Seed the random number generator so apples are random on every launch
+  rand::srand(macroquad::miniquad::date::now() as u64);
 
-    if last_tick.elapsed() >= TICK_RATE {
+  loop {
+    update_current_dir(&mut current_dir);
+
+    if get_time() - last_tick >= TICK_RATE {
       update_snake_pos(&mut snekk_pos, current_dir);
       update_snake_body(&mut snekk_body, snekk_pos, &mut apple_pos);
       update_board_state(&mut board_state, &mut snekk_body, apple_pos);
       
-      render_game(&snekk_pos, &board_state);
-      println!("Current dir: {} - Snake size: {}", current_dir, snekk_body.len());
-      last_tick = Instant::now();
+      last_tick = get_time();
     }
 
-    // Protects cpu from running loop too fast unnecessarily
-    thread::sleep(Duration::from_millis(1));
+    render_game(&board_state, snekk_body.len());
+
+    next_frame().await;
   }
 }
