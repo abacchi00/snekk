@@ -6,8 +6,9 @@ const BOARD_SIZE: usize = 20;
 const CELL_SIZE: f32 = 30.0;
 const TICK_RATE: f64 = 0.1; // 100ms
 
-// Types & Structs
+// Types, Structs and Implementations 
 type BoardState = [[u8; BOARD_SIZE]; BOARD_SIZE];
+
 type SnekkBody = VecDeque<Pos>;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -24,60 +25,114 @@ enum Direction {
   Right,
 }
 
+impl Direction {
+  fn from_keycode(keycode: Option<KeyCode>) -> Option<Self> {
+    match keycode {
+      Some(KeyCode::Up) => Some(Direction::Up),
+      Some(KeyCode::Down) => Some(Direction::Down),
+      Some(KeyCode::Left) => Some(Direction::Left),
+      Some(KeyCode::Right) => Some(Direction::Right),
+      _ => None
+    } 
+  }
+
+  fn opposite(self) -> Direction {
+    match self {
+      Direction::Up => Direction::Down,
+      Direction::Down => Direction::Up,
+      Direction::Left => Direction::Right,
+      Direction::Right => Direction::Left,
+    }
+  }
+}
+
+struct Snekk {
+  body: SnekkBody,
+  direction: Direction,
+  pos: Pos,
+}
+
+impl Snekk {
+  const INITIAL_POS: [Pos; 3] = [
+    Pos { x: 3, y: 1 },
+    Pos { x: 2, y: 1 },
+    Pos { x: 1, y: 1 },
+  ];
+
+  fn new() -> Self {
+    return Self {
+      body: VecDeque::from(Self::INITIAL_POS),
+      direction: Direction::Right,
+      pos: Self::INITIAL_POS[0],
+    }
+  }
+
+  fn change_direction(&mut self, maybe_new_direction: Option<Direction>) {
+    if let Some(new_direction) = maybe_new_direction {
+      if new_direction == self.direction.opposite() { return; }
+
+      self.direction = new_direction;
+    }
+  }
+
+  fn advance(&mut self, apple: &mut Apple) {
+    match self.direction {
+      Direction::Up => self.pos.y = self.pos.y.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
+      Direction::Down => self.pos.y = (self.pos.y + 1) % BOARD_SIZE,
+      Direction::Left => self.pos.x = self.pos.x.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
+      Direction::Right => self.pos.x = (self.pos.x + 1) % BOARD_SIZE,
+    }
+
+    self.body.push_front(self.pos);
+
+    // TODO: remove apple regeneration responsability from here
+    if self.pos != apple.pos {
+      self.body.pop_back();
+    } else {
+      apple.goto_valid_position(&self.body);
+    }
+  }
+}
+
+struct Apple {
+  pos: Pos,
+}
+
+impl Apple {
+  fn new(prohibited_positions: &VecDeque<Pos>) -> Self {
+    return Self {
+      pos: Self::generate_valid_position(prohibited_positions),
+    }
+  }
+
+  fn goto_valid_position(&mut self, prohibited_positions: &VecDeque<Pos>) {
+    self.pos = Self::generate_valid_position(prohibited_positions);
+  }
+
+  fn generate_valid_position(prohibited_positions: &VecDeque<Pos>) -> Pos {
+    loop {
+      let candidate = Pos {
+        x: rand::gen_range(0, BOARD_SIZE),
+        y: rand::gen_range(0, BOARD_SIZE),
+      };
+  
+      if !prohibited_positions.iter().any(|pos| pos.x == candidate.x && pos.y == candidate.y) {
+        break candidate;
+      }
+    }
+  }
+}
+
 // State Updaters
-fn update_current_dir(current_dir: &mut Direction) {
-  if is_key_pressed(KeyCode::Up) && *current_dir != Direction::Down {
-    *current_dir = Direction::Up;
-  } else if is_key_pressed(KeyCode::Down) && *current_dir != Direction::Up {
-    *current_dir = Direction::Down;
-  } else if is_key_pressed(KeyCode::Left) && *current_dir != Direction::Right {
-    *current_dir = Direction::Left;
-  } else if is_key_pressed(KeyCode::Right) && *current_dir != Direction::Left {
-    *current_dir = Direction::Right;
-  }
-}
-
-fn update_snake_pos(snekk_pos: &mut Pos, current_dir: Direction) {
-  match current_dir {
-    Direction::Up => snekk_pos.y = snekk_pos.y.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
-    Direction::Down => snekk_pos.y = (snekk_pos.y + 1) % BOARD_SIZE,
-    Direction::Left => snekk_pos.x = snekk_pos.x.checked_sub(1).unwrap_or(BOARD_SIZE - 1),
-    Direction::Right => snekk_pos.x = (snekk_pos.x + 1) % BOARD_SIZE,
-  }
-}
-
-fn update_snake_body(snekk_body: &mut SnekkBody, new_pos: Pos, apple_pos: &mut Pos) {
-  snekk_body.push_front(new_pos);
-
-  if new_pos != *apple_pos {
-    snekk_body.pop_back();
-  } else {
-    *apple_pos = generate_apple_pos(&snekk_body);
-  }
-}
-
-fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, apple_pos: Pos) {
+fn update_board_state(board_state: &mut BoardState, snekk_body: &mut SnekkBody, apple: &Apple) {
   for row in board_state.iter_mut() {
     row.fill(0);
   }
 
-  board_state[apple_pos.x][apple_pos.y] = 2;
+  board_state[apple.pos.x][apple.pos.y] = 2;
 
   for segment_pos in snekk_body {
     board_state[segment_pos.x][segment_pos.y] = 1;
-  }
-}
-
-fn generate_apple_pos(snekk_body: &SnekkBody) -> Pos {
-  loop {
-    let candidate = Pos {
-      x: rand::gen_range(0, BOARD_SIZE),
-      y: rand::gen_range(0, BOARD_SIZE),
-    };
-
-    if !snekk_body.iter().any(|pos| pos.x == candidate.x && pos.y == candidate.y) {
-      break candidate;
-    }
   }
 }
 
@@ -118,31 +173,24 @@ fn render_game(board_state: &BoardState, snekk_body_len: usize) {
 #[macroquad::main("Snekk")]
 async fn main() {
   let mut board_state: BoardState = [[0; BOARD_SIZE]; BOARD_SIZE];
-  let mut snekk_pos = Pos { x: 3, y: 1 };
-  let mut snekk_body: SnekkBody = VecDeque::from([
-    Pos { x: 3, y: 1 },
-    Pos { x: 2, y: 1 },
-    Pos { x: 1, y: 1 },
-  ]);
-  let mut apple_pos: Pos = generate_apple_pos(&snekk_body);
+  let mut snekk = Snekk::new();
+  let mut apple = Apple::new(&snekk.body);
   let mut last_tick = get_time();
-  let mut current_dir = Direction::Right; 
   
   // Seed the random number generator so apples are random on every launch
   rand::srand(macroquad::miniquad::date::now() as u64);
 
   loop {
-    update_current_dir(&mut current_dir);
+    snekk.change_direction(Direction::from_keycode(get_last_key_pressed()));
 
     if get_time() - last_tick >= TICK_RATE {
-      update_snake_pos(&mut snekk_pos, current_dir);
-      update_snake_body(&mut snekk_body, snekk_pos, &mut apple_pos);
-      update_board_state(&mut board_state, &mut snekk_body, apple_pos);
+      snekk.advance(&mut apple);
+      update_board_state(&mut board_state, &mut snekk.body, &apple);
       
       last_tick = get_time();
     }
 
-    render_game(&board_state, snekk_body.len());
+    render_game(&board_state, snekk.body.len());
 
     next_frame().await;
   }
