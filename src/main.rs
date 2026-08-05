@@ -83,7 +83,7 @@ impl Snekk {
       Direction::Right => self.pos.x = (self.pos.x + 1) % BOARD_SIZE,
     }
 
-    if self.body.iter().any(|pos| pos.x == self.pos.x && pos.y == self.pos.y) {
+    if self.body.iter().any(|pos| pos == &self.pos) {
       self.alive = false;
     }
 
@@ -117,7 +117,7 @@ impl Apple {
         y: rand::gen_range(0, BOARD_SIZE),
       };
   
-      if !prohibited_positions.iter().any(|pos| pos.x == candidate.x && pos.y == candidate.y) {
+      if !prohibited_positions.iter().any(|pos| pos == &candidate) {
         break candidate;
       }
     }
