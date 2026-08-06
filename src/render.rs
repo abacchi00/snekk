@@ -33,6 +33,13 @@ fn render_game_over_overlay() {
   render_centered_text("Press Space to restart the game", 24.0, 48.0);
 }
 
+fn render_victory_overlay() {
+  render_opaque_overlay();
+  render_centered_text("You won!", 48.0, -40.0);
+  render_centered_text("Press Esc to exit the game", 24.0, 8.0);
+  render_centered_text("Press Space to restart the game", 24.0, 48.0);
+}
+
 fn render_board(offset_x: f32, offset_y: f32) {
   for x in 0..BOARD_SIZE {
     for y in 0..BOARD_SIZE {
@@ -57,7 +64,7 @@ fn render_apple(apple: &Apple, offset_x: f32, offset_y: f32) {
   draw_circle(ax + CELL_SIZE / 2.0, ay + CELL_SIZE / 2.0, CELL_SIZE * 0.4, RED);
 }
 
-pub fn render_game(snekk: &Snekk, apple: &Apple) {
+pub fn render_game(snekk: &Snekk, apple: &Apple, victory: bool) {
   clear_background(Color::new(0.05, 0.05, 0.05, 1.0));
 
   let offset_x = (screen_width() - (BOARD_SIZE as f32 * CELL_SIZE)) / 2.0;
@@ -67,7 +74,7 @@ pub fn render_game(snekk: &Snekk, apple: &Apple) {
 
   render_snake(snekk, offset_x, offset_y);
 
-  render_apple(apple, offset_x, offset_y);
+  if !victory { render_apple(apple, offset_x, offset_y); }
 
   draw_text(
     &format!("Snake size: {}", snekk.body.len()),
@@ -78,4 +85,5 @@ pub fn render_game(snekk: &Snekk, apple: &Apple) {
   );
 
   if !snekk.alive { render_game_over_overlay(); }
+  else if victory { render_victory_overlay(); }
 }
