@@ -1,4 +1,2 @@
-- Separate main.rs into more files
-- Merge standalone head position into the snekk_body VecDeque.
-- Compile to WebAssembly and enable playing game somewhere in the web.
 - Create win logic
+- Compile to WebAssembly and enable playing game somewhere in the web.
