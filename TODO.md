@@ -1,2 +1,3 @@
 - Create win logic
 - Compile to WebAssembly and enable playing game somewhere in the web.
+- Create cool README
