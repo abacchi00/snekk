@@ -1,7 +1,4 @@
 - Separate main.rs into more files
 - Merge standalone head position into the snekk_body VecDeque.
-- Add impl's.
-- Add self-collision detection and a game_over flag.
-- Implement game over overlay screen and Spacebar restart logic.
-- Implement game Esc quit logic.
 - Compile to WebAssembly and enable playing game somewhere in the web.
+- Create win logic
